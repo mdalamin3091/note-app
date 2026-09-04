@@ -1,0 +1,24 @@
+{
+  "name": "notes-api",
+  "version": "1.0.0",
+  "description": "Multi-tenant Notes API (Scenario B)",
+  "main": "dist/app.js",
+  "scripts": {
+    "dev": "tsx watch src/app.ts",
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "seed": "tsx db/seed.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.7.4",
+    "@types/pg": "^8.11.10",
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}
