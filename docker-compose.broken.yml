@@ -1,0 +1,23 @@
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: notes
+      POSTGRES_PASSWORD: notes
+      POSTGRES_DB: notesdb
+    volumes:
+      - pgdata_broken:/var/lib/postgresql/data
+
+  app:
+    build: .
+    image: myapp:multi
+    environment:
+      PORT: 3050
+      DATABASE_URL: postgres://notes:notes@postgres:5432/notesdb
+    ports: ["3050:3050"]
+    depends_on:
+      - postgres          # <-- shudhu "started", "ready" noy
+
+volumes:
+  pgdata_broken:
