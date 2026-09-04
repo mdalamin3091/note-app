@@ -1,66 +1,74 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: notes
-      POSTGRES_PASSWORD: notes
-      POSTGRES_DB: notesdb
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./sql:/sql
-    healthcheck:
-      # pg_isready TCP diye connect kore -> initdb phase e fail kore, thik jemon chai
-      test: ["CMD-SHELL", "pg_isready -U notes -d notesdb -h 127.0.0.1"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 10s
-    restart: unless-stopped
-
   app:
     build: .
-    image: alamin-note-app:multi
+    container_name: todo_app
+    ports:
+      - "3000:3000"
     environment:
-      PORT: 3050
-      DATABASE_URL: postgres://notes:notes@postgres:5432/notesdb
-    ports: ["3050:3050"]
+      DATABASE_URL: postgres://todouser:todopass@postgres:5432/tododb
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: todouser
+      DB_PASSWORD: todopass
+      DB_NAME: tododb
     depends_on:
       postgres:
-        condition: service_healthy    # <-- ekhanei asol pathokko
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3050/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
+        condition: service_healthy   # <-- আসল সমাধান
     restart: unless-stopped
+    networks:
+      - todonet
+
+  postgres:
+    image: postgres:16
+    container_name: todo_postgres
+    environment:
+      POSTGRES_USER: todouser
+      POSTGRES_PASSWORD: todopass
+      POSTGRES_DB: tododb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U todouser -d tododb"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - todonet
 
   prometheus:
     image: prom/prometheus:latest
+    container_name: todo_prometheus
+    ports:
+      - "9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - promdata:/prometheus
-    ports: ["9095:9090"]
     depends_on:
-      app:
-        condition: service_started
-    restart: unless-stopped
+      - app
+    networks:
+      - todonet
 
   grafana:
     image: grafana/grafana:latest
+    container_name: todo_grafana
+    ports:
+      - "3001:3000"
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafanadata:/var/lib/grafana
-    ports: ["3005:3000"]
     depends_on:
-      prometheus:
-        condition: service_started
-    restart: unless-stopped
+      - prometheus
+    networks:
+      - todonet
 
 volumes:
   pgdata:
   promdata:
   grafanadata:
+
+networks:
+  todonet:
+    driver: bridge

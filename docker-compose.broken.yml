@@ -1,23 +1,28 @@
-
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: notes
-      POSTGRES_PASSWORD: notes
-      POSTGRES_DB: notesdb
-    volumes:
-      - pgdata_broken:/var/lib/postgresql/data
-
   app:
     build: .
-    image: alamin-note-app:multi
+    container_name: todo_app
+    ports:
+      - "3000:3000"
     environment:
-      PORT: 3050
-      DATABASE_URL: postgres://notes:notes@postgres:5432/notesdb
-    ports: ["3050:3050"]
+      DATABASE_URL: postgres://todouser:todopass@postgres:5432/tododb
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: todouser
+      DB_PASSWORD: todopass
+      DB_NAME: tododb
     depends_on:
-      - postgres          # <-- shudhu "started", "ready" noy
+      - postgres         
+
+  postgres:
+    image: postgres:16
+    container_name: todo_postgres
+    environment:
+      POSTGRES_USER: todouser
+      POSTGRES_PASSWORD: todopass
+      POSTGRES_DB: tododb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
 
 volumes:
-  pgdata_broken:
+  pgdata:
