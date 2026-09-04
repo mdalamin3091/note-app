@@ -1,5 +1,5 @@
 services:
-  db:
+  postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: notes
@@ -9,20 +9,58 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./sql:/sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U notes -d notesdb"]
+      # pg_isready TCP diye connect kore -> initdb phase e fail kore, thik jemon chai
+      test: ["CMD-SHELL", "pg_isready -U notes -d notesdb -h 127.0.0.1"]
       interval: 5s
+      timeout: 3s
       retries: 10
+      start_period: 10s
+    restart: unless-stopped
 
   app:
     build: .
-    image: myapp:v1
+    image: alamin-note-app:multi
     environment:
       PORT: 3050
-      DATABASE_URL: postgres://notes:notes@db:5432/notesdb
+      DATABASE_URL: postgres://notes:notes@postgres:5432/notesdb
     ports: ["3050:3050"]
     depends_on:
-      db:
-        condition: service_healthy
+      postgres:
+        condition: service_healthy    # <-- ekhanei asol pathokko
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3050/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    ports: ["9095:9090"]
+    depends_on:
+      app:
+        condition: service_started
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafanadata:/var/lib/grafana
+    ports: ["3005:3000"]
+    depends_on:
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   pgdata:
+  promdata:
+  grafanadata:
